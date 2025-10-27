@@ -74,3 +74,11 @@ FREE(paths); // po uzyciu trzeba zwolnic tylko tablice wskaznikow bo one wskazuj
 if (closedir(dirp) == -1)
     ERR("closedir");
 }
+
+/*
+KOMPILACJA
+zwykla kompilacja taka jak chca na labach
+	gcc -Wall -fsanitize=address,undefined main.c -o main
+kompilacja do lepszych errorow sanitizera
+	gcc -Wall -g -O0 -fsanitize=address,undefined main.c -o main
+*/

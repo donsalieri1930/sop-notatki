@@ -76,7 +76,6 @@ int main(int argc, char **argv) {
             ERR_NOEXIT("nftw");
     }
     FREE(paths);
-    paths = NULL;
     if (out != stdout && fclose(out) != 0) // nie zamykamy stdout
         ERR("fclose");
     return EXIT_SUCCESS;
