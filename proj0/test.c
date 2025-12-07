@@ -53,14 +53,6 @@ static void handle_events(int fd, int *wd, int argc, char* argv[])
             if (event->mask & IN_CLOSE_WRITE)
                 printf("IN_CLOSE_WRITE: ");
 
-            /* Print the name of the watched directory. */
-
-            for (size_t i = 1; i < argc; ++i) {
-                if (wd[i] == event->wd) {
-                    printf("%s/", argv[i]);
-                    break;
-                }
-            }
 
             /* Print the name of the file. */
 

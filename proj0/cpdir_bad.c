@@ -48,7 +48,7 @@ char *join_paths(const char *path1, const char *path2) {
 char *dest_base = "backup";
 int src_base_len;
 
-int walk(const char *fpath, const struct stat *sb, int tflag, struct FTW *ftwbuf) {
+int walk_backup(const char *fpath, const struct stat *sb, int tflag, struct FTW *ftwbuf) {
     const char *src_suffix = fpath + src_base_len;
     char *dest_fpath = join_paths(dest_base, src_suffix);
     switch (tflag) {
@@ -72,5 +72,5 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     char *src_base = argv[1];
     src_base_len = strlen(src_base);   // w main
-    nftw(src_base, walk, MAXFD, 0);
+    nftw(src_base, walk_backup, MAXFD, 0);
 }

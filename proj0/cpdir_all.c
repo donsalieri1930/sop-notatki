@@ -92,7 +92,7 @@ int nftw_src_len, src_absolute_len;
 char src_absolute[PATH_MAX + 1];
 char dest_absolute[PATH_MAX + 1];
 
-int walk(const char *fpath, const struct stat *sb, int tflag, struct FTW *ftwbuf) {
+int walk_backup(const char *fpath, const struct stat *sb, int tflag, struct FTW *ftwbuf) {
     /* 
         Path to source directory inside fpath is not guaranteed to be 
         equal to path passed into nftw.
@@ -130,7 +130,7 @@ int walk(const char *fpath, const struct stat *sb, int tflag, struct FTW *ftwbuf
             link_to[link_to_len] = 0;
             /* 
                 If link target is an absolute path, and inside source directory, 
-                create a symlink to a copy. Otherwise create symlink with the same path.
+                create a symlink to a copy. Otherwise use the same path.
             */
             if (strncmp(src_absolute, link_to, src_absolute_len) == 0 &&
                 (link_to[src_absolute_len] == '/' || link_to[src_absolute_len] == 0)) {
@@ -158,5 +158,5 @@ int main(int argc, char **argv) {
     realpath(src_path, src_absolute);
     realpath("backup", dest_absolute);
     src_absolute_len = strlen(src_absolute);
-    nftw(src_path, walk, MAXFD, FTW_PHYS);
+    nftw(src_path, walk_backup, MAXFD, FTW_PHYS);
 }
