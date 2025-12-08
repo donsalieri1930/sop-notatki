@@ -1,13 +1,13 @@
 /*
-    Dynamic array of char*. Allows to set value at any non-negative 
-    index. Shrinking is not supported. Strings must be allocated on
-    the heap, and should be freed by strvec_free.
+    Dynamic array of char*. Allows to set value, including NULL, at
+    any non-negative index. Shrinking is not supported. Array makes 
+    its own copies of the strings.
 */
 
 #ifndef STRVEC_H
 #define STRVEC_H
 
-#define INITIAL_CAPACITY 32
+#define INITIAL_CAPACITY 2
 
 typedef struct {
     char **strings;
@@ -16,9 +16,10 @@ typedef struct {
 } strvec;
 
 int strvec_init(strvec *v);
-int strvec_set(strvec *v, int index, char *string);
+int strvec_set(strvec *v, int index, const char *string);
 void strvec_free(strvec *v);
 int strvec_search(strvec *v, const char* string);
 void strvec_print(strvec *v);
+int strvec_add(strvec *v, char *string);
 
 #endif

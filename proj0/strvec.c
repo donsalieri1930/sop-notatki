@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include "strvec.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,14 +27,20 @@ int strvec_init(strvec *v) {
     return 0;
 }
 
-int strvec_set(strvec *v, int i, char *string) {
+int strvec_set(strvec *v, int i, const char *string) {
     if (v->capacity < i + 1) {
         int new_capacity = MAX(2*v->capacity, i + 1);
         if (strvec_resize(v, new_capacity) == -1)
             return -1;
     }
+    char *string_copy = NULL;
+    if (string != NULL) {
+        string_copy = strdup(string);
+        if (string_copy == NULL)
+            return -1;
+    }
     free(v->strings[i]);
-    v->strings[i] = string;
+    v->strings[i] = string_copy;
     if (string != NULL)
         v->max_i = MAX(v->max_i, i);
     return 0;
@@ -44,7 +52,6 @@ int strvec_add(strvec *v, char *string) {
 }
 
 void strvec_free(strvec *v) {
-    /* Use only if all elements can be freed, or are NULL. */
     for (int i = 0; i <= v->max_i; i++)
         free(v->strings[i]);
     free(v->strings);
@@ -54,7 +61,7 @@ void strvec_free(strvec *v) {
 
 int strvec_search(strvec *v, const char* string) {
     for (int i=0; i<=v->max_i; i++) {
-        if (strcmp(string, v->strings[i]) == 0)
+        if (v->strings[i] != NULL && strcmp(string, v->strings[i]) == 0)
             return i;
     }
     return -1;

@@ -12,6 +12,8 @@
 #include <linux/limits.h>
 #include <sys/inotify.h>
 #include <poll.h>
+#include <sys/stat.h>
+#include <dirent.h>
 
 #include "strvec.h"
 
@@ -22,6 +24,11 @@
 
 #define ERR(source) \
     (fprintf(stderr, "%s:%d\n", __FILE__, __LINE__), perror(source), kill(0, SIGKILL), exit(EXIT_FAILURE))
+
+void usage(char *name) {
+    fprintf(stderr, "USAGE: %s src dest\n", name);
+    exit(EXIT_FAILURE);
+}
 
 ssize_t bulk_read(int fd, char *buf, size_t count) {
     ssize_t c;
@@ -103,13 +110,10 @@ void try_backup_dir(const char *src, const struct stat *sb, const char *dest, in
         ERR("inotify_add_watch");
     if (src_wd == -1)
         src_wd = wd;
-    char *src_dup = strdup(src);
-    if (src_dup == NULL)
-        ERR("strdup");
-    if (strvec_set(wds, wd, src_dup) == -1)
+    if (strvec_set(wds, wd, src) == -1)
         ERR("strvec_set");
 
-    /* src_dup will be freed by strvec desctuctor */
+    /* strvec will create its own copy. */
 }
 
 void try_backup_file(const char *src, const struct stat *sb, const char *dest) {
@@ -166,7 +170,9 @@ strvec inotify_wds;
 int walk_backup(const char *fpath, const struct stat *sb, int tflag, struct FTW *ftwbuf) {
     /* Path to source directory inside fpath is not guaranteed to be
        equal to the path passed by nftw. During the initial walk of
-       the source directory, we calculate the length of source fpath. */
+       the source directory, we calculate the length of source fpath. 
+       Any additional nftw calls will pass only fpath values, so path 
+       prefix (path to source) does not change. */
 
     if (at_src && ftwbuf->level == 0) {
         nftw_root_len = strlen(fpath);
@@ -309,7 +315,6 @@ void handle_events() {
                         ERR("lstat");
 
                     if (S_ISREG(sb.st_mode))
-                        
                         try_backup_file(fpath, &sb, dest_fpath);
 
                     else if (S_ISLNK(sb.st_mode))
@@ -331,13 +336,56 @@ void handle_events() {
 
 int main(int argc, char **argv) {
     if (argc != 3)
-        exit(EXIT_FAILURE);
+        usage(argv[0]);
     char *src_path = argv[1];
     char *dest_path = argv[2];
 
-    realpath(src_path, src_abs);
-    realpath(dest_path, dest_abs);
+    /* Make sure destination directory does not exist, and was empty
+       if it did. We must temporairly create the directory to
+       calculate its absolute path. */
+
+    if (mkdir(dest_path, 0777) == -1) {
+        if (errno != EEXIST)
+            ERR("mkdir");
+        
+        struct stat sb;
+        if (stat(dest_path, &sb) == -1)
+            ERR("stat");
+
+        DIR *dirp = opendir(dest_path);
+        if (dirp == NULL)
+            ERR("opendir");
+        
+        struct dirent *entp;
+        while ((entp = readdir(dirp)) != NULL) {
+            if (strcmp(entp->d_name, ".") == 0 || strcmp(entp->d_name, "..") == 0)
+                continue;
+            closedir(dirp);
+            usage(argv[0]);
+        }
+        closedir(dirp);
+    }
+
+    if (realpath(src_path, src_abs) == NULL)
+        ERR("realpath");
+    if (realpath(dest_path, dest_abs) == NULL)
+        ERR("realpath");
+
+    if (rmdir(dest_path) == -1)
+        ERR("rmdir");
     src_abs_len = strlen(src_abs);
+
+    /* Creating destination directory inside source would cause
+       infinite cascade of events. */
+
+    if (src_abs_len <= strlen(dest_abs) &&
+        strncmp(src_abs, dest_abs, src_abs_len) == 0 &&
+        (dest_abs[src_abs_len] == '/' || dest_abs[src_abs_len] == 0))  {
+            usage(argv[0]);
+        }
+    
+    /* Backup the whole tree and add watches. */
+    
     inotify_fd = inotify_init1(IN_NONBLOCK);
     if (inotify_fd == -1)
         ERR("inotify_init1");
@@ -345,6 +393,7 @@ int main(int argc, char **argv) {
     at_src = 1;
     nftw(src_path, walk_backup, MAXFD, FTW_PHYS);
     at_src = 0;
+
     struct pollfd pfd = {inotify_fd, POLLIN};
     int poll_num;
     while (stop_loop == 0) {
