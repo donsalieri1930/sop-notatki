@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Nazwa Twojego programu
-P4="./p4"
+P4="./sop-backup"
 
 ######################
 # Funkcje pomocnicze #

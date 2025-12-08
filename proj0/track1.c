@@ -126,7 +126,7 @@ void try_backup_file(const char *src, const struct stat *sb, const char *dest) {
         ERR("close");
 }
 
-void try_backup_sl(const char *src, const char *src_root_abs, int src_root_abs_len,
+void try_backup_sl(const char *src, const char *src_root_abs, 
     const char *dest_root_abs, const char *dest) {
 
     char sl[PATH_MAX + 1];
@@ -137,6 +137,8 @@ void try_backup_sl(const char *src, const char *src_root_abs, int src_root_abs_l
 
     /* If link target is an absolute path, and inside source directory, 
         create a symlink to a copy. Otherwise use the same path. */
+
+    int src_root_abs_len = strlen(src_root_abs);
 
     if (strncmp(src_root_abs, sl, src_root_abs_len) == 0 &&
         (sl[src_root_abs_len] == '/' || sl[src_root_abs_len] == 0)) {
@@ -161,7 +163,6 @@ void try_backup_sl(const char *src, const char *src_root_abs, int src_root_abs_l
 
 char src_abs[PATH_MAX + 1];
 char dest_abs[PATH_MAX + 1];
-int src_abs_len;
 int nftw_root_len;
 int at_src;
 int inotify_fd;
@@ -190,8 +191,7 @@ int walk_backup(const char *fpath, const struct stat *sb, int tflag, struct FTW 
             break;
 
         case FTW_SL:
-            try_backup_sl(fpath, src_abs, src_abs_len, 
-                dest_abs, dest_fpath_abs);
+            try_backup_sl(fpath, src_abs, dest_abs, dest_fpath_abs);
             break;
         default:
             break;
@@ -318,10 +318,10 @@ void handle_events() {
                         try_backup_file(fpath, &sb, dest_fpath);
 
                     else if (S_ISLNK(sb.st_mode))
-                        try_backup_sl(fpath, src_abs, src_abs_len, dest_abs, dest_fpath);
+                        try_backup_sl(fpath, src_abs, dest_abs, dest_fpath);
 
                     /* Other files are ignored. */
-                    }
+                }
 
                 else if (event->mask & (IN_DELETE | IN_MOVED_FROM)) {
                     if (remove(dest_fpath) == -1)
@@ -373,10 +373,11 @@ int main(int argc, char **argv) {
 
     if (rmdir(dest_path) == -1)
         ERR("rmdir");
-    src_abs_len = strlen(src_abs);
-
+    
     /* Creating destination directory inside source would cause
        infinite cascade of events. */
+
+    size_t src_abs_len = strlen(src_abs);
 
     if (src_abs_len <= strlen(dest_abs) &&
         strncmp(src_abs, dest_abs, src_abs_len) == 0 &&
@@ -394,7 +395,7 @@ int main(int argc, char **argv) {
     nftw(src_path, walk_backup, MAXFD, FTW_PHYS);
     at_src = 0;
 
-    struct pollfd pfd = {inotify_fd, POLLIN};
+    struct pollfd pfd = {inotify_fd, POLLIN, 0};
     int poll_num;
     while (stop_loop == 0) {
         poll_num = poll(&pfd, 1, -1);

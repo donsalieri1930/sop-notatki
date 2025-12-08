@@ -46,7 +46,7 @@ int strvec_set(strvec *v, int i, const char *string) {
     return 0;
 }
 
-int strvec_add(strvec *v, char *string) {
+int strvec_add(strvec *v, const char *string) {
     int res = strvec_set(v, v->max_i + 1, string);
     return res;        
 }
