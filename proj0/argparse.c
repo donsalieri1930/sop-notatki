@@ -1,45 +1,50 @@
-#include <linux/limits.h>
 #include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #include "strvec.h"
 
-strvec *argparse(strvec*args, char *string) {
-    strvec_init(args);
-    char *start = string;
-    char *end = string;
-    char arg[PATH_MAX + 1];
-    int quotes = 0;
-    for (int i=0; i<strlen(string); i++) {
-        // End of argument
-        if (string[i] == ' ' && !quotes) {
-            strncpy(arg, start, end - start);
-            arg[end - start] = 0;
-            strvec_add(args, arg);
-            start = end + 2;
-        }
-        if (string[i] == '"' && !quotes) {
-            quotes = 1;
-            start++;
-        }
-        if (string[i] == '"' && quotes) {
-            strncpy(arg, start, end - 1 - start);
-            arg[end - 1 - start] = 0;
-            strvec_add(args, arg);
-            start = end + 1;
-        }
-        end++;
-    }
-    strncpy(arg, start, end - start);
-    arg[end - start] = 0;
-    strvec_add(args, arg);
-    return args;
-}
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
 
-int main() {
-    strvec args;
-    char string[] = "hello world this is a test";
-    argparse(&args, string);
-    strvec_print(&args);
-    strvec_free(&args);
-    return 0;
+int parse_args(const char *string, strvec *args) {
+    size_t n = strlen(string);
+    char *arg = malloc((n + 1)*sizeof(char));
+    if (arg == NULL)
+        return -1;
+    size_t arg_len = 0;
+    int ignore_space = 0;
+    int status = 0;
+    for (size_t i = 0; i < n; i++) {
+        switch (string[i]) {
+            case ' ':
+                if (ignore_space)
+                    arg[arg_len++] = string[i];
+
+                else if (arg_len > 0) {
+                    arg[arg_len] = 0;
+                    if (strvec_add(args, arg) == -1) {
+                        status = -1;
+                        goto cleanup;
+                    }
+                    arg_len = 0;
+                }
+                break;
+
+            case '"':
+                ignore_space = !ignore_space;
+                break;
+
+            default:
+                arg[arg_len++] = string[i];
+                break;
+        }
+    }
+    if (arg_len > 0) {
+        arg[arg_len] = 0;
+        status = strvec_add(args, arg);
+    }
+
+cleanup:
+    free(arg);
+    return status;
 }
